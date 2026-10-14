@@ -1,97 +1,58 @@
-Features:
----------
-* User registration
+# Django-Registration-OTP-API
 
-* View user profile
+A Django REST Framework API (2019) for user accounts with phone verification:
+registration, email verification, token login, password reset, and phone number
+verification with a one-time code sent by SMS through Twilio.
 
-* Send OTP 
+## Endpoints
 
-* Verify OTP
+Endpoints marked 🔒 need the header `Authorization: Token <token>` (get the token from login).
 
+| Method | Endpoint | Body | Notes |
+|---|---|---|---|
+| POST | `/api/accounts/register/` | `username`, `email`, `password`, `password_2`, `first_name`, `last_name`, `invite_code` (optional) | Creates the user and emails a verification link |
+| GET | `/api/accounts/verify/<verification_key>/` | – | Email verification link |
+| POST | `/api/accounts/login/` | `email` or `username`, `password` | Returns `{ "token": "<token>" }` |
+| POST | `/api/accounts/password_reset/` | `email` | Emails a password-reset link |
+| POST | `/api/accounts/reset/<uidb64>/<token>/` | `new_password`, `new_password_2` | Sets the new password |
+| GET 🔒 | `/api/accounts/user-profile/` | – | `user` (email, first/last name) + `has_email_verified` |
+| POST 🔒 | `/api/verification/send_otp/` | `country_code`, `phone_number` (digits only, e.g. `1`, `5551234567`) | Texts a 6-character code to the number |
+| POST 🔒 | `/api/verification/verify_otp/` | `otp` | Marks the phone number verified if the code matches |
 
-API Documentation
------------------
+## Layout
 
-i. User - Registration
-Create/ Register a new user.
+```
+accounts/   users, registration, email verification, login, password reset, profile
+otp/        PhoneVerification model + send/verify OTP endpoints (Twilio)
+base/       shared model/utils
+i2x_demo/   Django project settings and URLs
+templates/  email subject/body templates
+```
 
-	Endpoint 	: /api/accounts/register/
-	Request Type 	: POST
-	Request Params 	: username, email, password, password_2, first_name, last_name, invite_code
-	Non-mandatory params : invite_code
+## Running it locally
 
-	Response Http status codes : HTTP_200_OK or HTTP_400_BAD_REQUEST
+Written for Python 3.6 and Django 2.1. Uses SQLite by default.
 
+```
+pip install -r requirements.txt   # mysqlclient needs MySQL client libs; remove it if you stick with SQLite
+python manage.py migrate
+python manage.py runserver
+```
 
-ii. User - Login
-Obtain authentication token given the user credentials.
+### Configuration (environment variables)
 
-	Endpoint 	: /api/accounts/login/
-	Request Type 	: POST
-	Request Params 	: email (or username) and password
-	
-	Response 	: { "token": <token> }
-	HTTP status code: HTTP_200_OK or HTTP_400_BAD_REQUEST
-	
-vi. User - Retrieve Profile
-Retrieve logged in users profile.
+| Variable | Used for |
+|---|---|
+| `DJANGO_SECRET_KEY` | Django secret key (falls back to an insecure dev-only value) |
+| `TWILIO_ACCOUNT_SID` | Twilio account for sending the OTP SMS |
+| `TWILIO_AUTH_TOKEN` | Twilio auth token |
+| `TWILIO_FROM_NUMBER` | Your Twilio sending number, e.g. `+15550001111` |
 
-	Endpoint 	: /api/accounts/user-profile/
-	Request Type 	: GET
-	Request Headers : 
-		Authorization : Token <token>
-	
-	HTTP status code: HTTP_200_OK or HTTP_401_UNAUTHORISED
-	
-vi. Verificaton - Send OTP
-Send OTP to given Phone Number.
+Email settings (`EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD`) are placeholders in
+`i2x_demo/settings.py`. Set real values in a `local_settings.py` (git-ignored, and
+loaded automatically if present) to actually send the verification and reset emails.
 
-	Endpoint 	: /api/verification/send_otp/
-	Request Type 	: POST
-	Request Headers : 
-		Authorization : Token <token>
-	
-	HTTP status code: HTTP_200_OK or HTTP_401_UNAUTHORISED
-	Response Sample : "OTP Sent"
+## Status
 
-vi. Verificaton - Verify OTP
-Verify OTP from given input.
-
-	Endpoint 	: /api/verification/send_otp/
-	Request Type 	: POST
-	Request Headers : 
-		Authorization : Token <token>
-	
-	HTTP status code: HTTP_200_OK or HTTP_401_UNAUTHORISED
-	Response Sample : "Congrats your phone number has been verified"
-	
-
-## Run the project Locally ##
-
-i. Clone the repository.
-
-ii. Go to directory of manage.py and install the requirements.
-
-	pip install -r requirements.txt
-	
-**Note:**
-You may configure the virtual environment if required.
-
-For instructions, click here : https://virtualenv.pypa.io/en/latest/installation/
-    
-**Note:**
-By default, Sqlite3 database is used. You may also use different database in local_settings file if required.
-
-iv. Run migrations
-
-	python manage.py migrate
-
-v. Ready to run the server.
-
-	python manage.py runserver
-	
-
-#### PASSWORD_MIN_LENGTH #### 
-
-A constraint that defines minimum length of password. Defaulted to 8
-	
+Unmaintained demo, kept for reference. Not production-ready: `DEBUG = True`, and
+OTPs never expire and have no attempt limit.
